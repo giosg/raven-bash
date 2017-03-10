@@ -1,125 +1,125 @@
 import argparse
 import re
-from collections import namedtuple
-import configparser
 import sys
 import os
+from collections import namedtuple
 from raven import Client
+from raven.transport.requests import RequestsHTTPTransport
+
+# For python 2 compatibility since it does not have FileNotFoundError
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 
 
-CONFIG_FILE = '/etc/raven-bash.conf'
+def parse_variables(declare_output):
+    """Parses the output from declare -p and returns a dict that contains the variables"""
+    parser = re.compile(r'declare .[^x] (?P<name>[^=]+)=(?P<value>\S.*)')
+
+    res = {}
+    for match in parser.finditer(declare_output):
+        group = match.groupdict()
+
+        # Trim leading and trailing "
+        # TODO: This could be cleaner if we did it in the regex
+        if group['value'].endswith('"'):
+            group['value'] = group['value'][:-1]
+        if group['value'].startswith('"'):
+            group['value'] = group['value'][1:]
+
+        res[group['name']] = group['value']
+
+    return res
 
 
-class LoggerClient:
-    def __init__(self, dsn):
-        self._client = Client(dsn=dsn, context={})
+def process_sourcefile(file_path, line_number, context_lines=10):
+    FileContext = namedtuple('FileContext', ['pre_context', 'context', 'post_context'])
 
-    def _process_sourcefile(self, file_path, line_number, context_lines=10):
-        FileContext = namedtuple('FileContext', ['pre_context', 'context', 'post_context', 'local_vars'])
+    start = max(line_number - context_lines, 0)
+    stop = line_number + context_lines
 
-        start = max(line_number - context_lines, 0)
-        stop = line_number + context_lines
+    pre_context = []
+    post_context = []
+    context = None
 
-        pre_context = []
-        post_context = []
-        local_vars = []
-        context = None
+    with open(file_path, 'r') as f:
+        for i, line in enumerate(f):
+            current_line = i + 1
+            if current_line < start:
+                continue
+            elif current_line > stop:
+                break
 
-        with open(file_path, 'r') as f:
-            for i, line in enumerate(f):
-                current_line = i + 1
-                if current_line < start:
-                    continue
-                elif current_line > stop:
-                    break
+            if current_line < line_number:
+                pre_context.append(line.rstrip('\n'))
+            elif current_line == line_number:
+                context = line.rstrip('\n')
+            else:
+                post_context.append(line.rstrip('\n'))
 
-                # search for variable declaration
-                var = re.match(r'^(?P<name>[a-z]{1}\w*)=\S', line, re.IGNORECASE)
-                if var:
-                    local_vars.append(var.group('name'))
+    return FileContext(pre_context, context, post_context)
 
-                if current_line < line_number:
-                    pre_context.append(line.rstrip('\n'))
-                elif current_line == line_number:
-                    context = line.rstrip('\n')
-                else:
-                    post_context.append(line.rstrip('\n'))
 
-        return FileContext(pre_context, context, post_context, local_vars)
+def get_extra_info(shell_args):
+    # add ENV vars and stderr if provided
+    extra = {}
+    if shell_args.env:
+        extra['environment'] = dict([item.split('=', 1) for item in shell_args.env.split('\n')])
 
-    def _get_declares(self, declare_output, local_vars):
-        """Parse `declare -p` output and get values from local variables"""
-        out = {}
-        for var in local_vars:
-            m = re.search(r'^(?P<name>' + re.escape(var) + r')=(?P<value>\S.*)', declare_output, re.MULTILINE)
-            if m:
-                out[m.group('name')] = m.group('value')
+    if shell_args.stderr:
+        extra['stderr'] = shell_args.stderr
 
-        return out
+    return extra
 
-    def capture(self, shell_args):
-        frame = {
-            'filename': shell_args.script,
-            'function': shell_args.function or 'main',
-            'lineno': shell_args.lineno,
-            'module': shell_args.command,
-            'vars': {},
-        }
 
-        if shell_args.pwd:
-            abspath = os.path.abspath(os.path.join(shell_args.pwd, shell_args.script))
-            filename = os.path.basename(abspath)
+def get_captured_exception(shell_args):
+    frame = {
+        'filename': shell_args.script,
+        'function': shell_args.function or 'main',
+        'lineno': shell_args.lineno,
+        'module': shell_args.command,
+        'vars': {},
+    }
 
-            try:
-                srcfile = self._process_sourcefile(abspath, shell_args.lineno)
-                if shell_args.declares:
-                    frame['vars'] = self._get_declares(shell_args.declares, srcfile.local_vars)
+    if shell_args.pwd:
+        abspath = os.path.abspath(os.path.join(shell_args.pwd, shell_args.script))
+        filename = os.path.basename(abspath)
 
-                frame.update(
-                    filename=filename,
-                    abs_path=abspath,
-                    pre_context=srcfile.pre_context,
-                    context_line=srcfile.context,
-                    post_context=srcfile.post_context
-                )
-            except FileNotFoundError:
-                sys.stderr.write('Could not process file "{}"\n'.format(abspath))
+        try:
+            srcfile = process_sourcefile(abspath, shell_args.lineno)
+            if shell_args.declares:
+                frame['vars'] = parse_variables(shell_args.declares)
+            frame.update(
+                filename=filename,
+                abs_path=abspath,
+                pre_context=srcfile.pre_context,
+                context_line=srcfile.context,
+                post_context=srcfile.post_context
+            )
 
-        data = {
-            'exception': {
-                'values': [{
-                    'module': 'builtins',
-                    'stacktrace': {
-                        'frames': [frame]
-                    },
-                    'type': shell_args.script,
-                    'value': 'error on line {}'.format(shell_args.lineno) if not shell_args.function else "error in '{}' on line {}".format(shell_args.function, shell_args.lineno)
-                }]
-            },
-        }
+        except FileNotFoundError:
+            sys.stderr.write('Could not process file "{}"\n'.format(abspath))
 
-        # add ENV vars and stderr if provided
-        extra = {}
-        if shell_args.env:
-            extra['environment'] = dict([item.split('=', maxsplit=1) for item in shell_args.env.split('\n')])
+    data = {
+        'exception': {
+            'values': [{
+                'module': 'builtins',
+                'stacktrace': {
+                    'frames': [frame]
+                },
+                'type': shell_args.script,
+                'value': 'error on line {}'.format(shell_args.lineno) if not shell_args.function else "error in '{}' on line {}".format(shell_args.function, shell_args.lineno)
+            }]
+        },
+    }
+    return data
 
-        if shell_args.stderr:
-            extra['stderr'] = shell_args.stderr
-
-        self._client.capture('raven.events.Exception', data=data, extra=extra)
 
 def main():
-    try:
-        dsn = os.environ['SENTRY_DSN']
-    except KeyError:
-        config = configparser.ConfigParser()
-        config.sections()
-        config.read(CONFIG_FILE)
-
-        dsn = config['DEFAULT'].get('SENTRY_DSN')
-
+    dsn = os.environ.get('SENTRY_DSN')
     if not dsn:
-        sys.stderr.write('Missing SENTRY_DSN config from {}\n'.format(CONFIG_FILE))
+        sys.stderr.write('Missing SENTRY_DSN')
         sys.exit(1)
 
     parser = argparse.ArgumentParser(description='Send error to Sentry')
@@ -137,8 +137,15 @@ def main():
 
     args = parser.parse_args()
 
-    client = LoggerClient(dsn)
-    client.capture(args)
+    # Use RequestsHTTPTransport here so it works with Lets encrypt certs
+    client = Client(dsn=dsn, context={}, transport=RequestsHTTPTransport)
+
+    client.capture(
+        'raven.events.Message',
+        message="raven-bash captured error in %s" % args.script,
+        data=get_captured_exception(args),
+        extra=get_extra_info(args),
+    )
 
 if __name__ == '__main__':
     main()

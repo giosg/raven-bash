@@ -1,38 +1,16 @@
-import sys
 from setuptools import setup
-
-if sys.version_info[:2] < (3, 1):
-    sys.exit('raven-bash requires Python 3.1 or higher.')
-
-long_description = '''\
-Raven Sentry client for Bash.
-
-Logs error if one of your commands exits with non-zero return code and produces simple traceback for
-easier debugging. It also tries to extract last values of the variables visible in the traceback.
-Environment variables and stderr output are also included.
-
-For more information please visit project repo on GitHub: https://github.com/hareevs/raven-bash
-'''
-
 
 setup(
     name='raven-bash',
     version='0.1.1',
     description='Raven Sentry client for Bash.',
-    long_description=long_description,
-    classifiers=[
-        'Development Status :: 4 - Beta',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: Apache Software License',
-        'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Python :: 3.4',
-    ],
+    classifiers=[],
     keywords='raven sentry bash',
-    author='Viktor Stískala',
-    author_email='viktor@stiskala.cz',
-    url='https://github.com/hareevs/raven-bash',
     license='Apache License 2.0',
-    install_requires=['raven>=5.1.1'],
+    install_requires=[
+        'raven>=6.0.0',
+        'requests'
+    ],
     packages=['logger'],
     package_data={'logger': ['raven-bash', 'logger/*.py']},
     entry_points={
