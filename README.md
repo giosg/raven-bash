@@ -13,7 +13,13 @@ This script is currently in working beta. Use at your own risk. Any contribution
 
 ## Installation
 ```shell
-pip install git+https://github.com/giosg/raven-bash
+pip install git+https://github.com/giosg/raven-bash@master#egg=raven-bash
+```
+
+The default installation uses default transport for raven. If you need `RequestsHTTPTransport` you can install the raven-bash with `extras_require` requests.
+
+```shell
+pip install git+https://github.com/giosg/raven-bash@master#egg=raven-bash[requests]
 ```
 
 ## Usage
