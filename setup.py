@@ -1,16 +1,18 @@
 from setuptools import setup
 
 setup(
-    name='raven-bash',
-    version='0.1.1',
+    name='raven-bash 2',
+    version='0.1.0',
     description='Raven Sentry client for Bash.',
     classifiers=[],
     keywords='raven sentry bash',
     license='Apache License 2.0',
     install_requires=[
         'raven>=6.0.0',
-        'requests'
     ],
+    extras_require = {
+        'requests': ['requests']
+    },
     packages=['logger'],
     package_data={'logger': ['raven-bash', 'logger/*.py']},
     entry_points={

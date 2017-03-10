@@ -4,7 +4,6 @@ import sys
 import os
 from collections import namedtuple
 from raven import Client
-from raven.transport.requests import RequestsHTTPTransport
 
 # For python 2 compatibility since it does not have FileNotFoundError
 try:
@@ -116,6 +115,20 @@ def get_captured_exception(shell_args):
     return data
 
 
+def get_client(dsn):
+    """
+    Return raven client. Try to return with RequestsHTTPTransport (if raven-bash has been installed with requests)
+    if requests is not found then fallback to default transport
+    """
+    try:
+        import requests  # noqa
+        from raven.transport.requests import RequestsHTTPTransport
+        # Use RequestsHTTPTransport here so it works with Lets encrypt certs
+        return Client(dsn=dsn, context={}, transport=RequestsHTTPTransport)
+    except:
+        return Client(dsn=dsn, context={})
+
+
 def main():
     dsn = os.environ.get('SENTRY_DSN')
     if not dsn:
@@ -137,8 +150,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Use RequestsHTTPTransport here so it works with Lets encrypt certs
-    client = Client(dsn=dsn, context={}, transport=RequestsHTTPTransport)
+    client = get_client(dsn)
+
     client.capture(
         'raven.events.Message',
         message="raven-bash captured error in %s" % args.script,
