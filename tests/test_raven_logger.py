@@ -82,5 +82,23 @@ declare -- foo="bar"
             'foo': 'bar',
         }, parsed)
 
-    def test_get_captured_exception(self):
-        pass
+    def test_get_extra_info(self):
+        env = """TMPDIR=/var/folders/mq/6c9b9wvx2w3dk8ml6_29z6fw0000gn/T/
+PROJECT_HOME=/Users/foo/bar
+XPC_SERVICE_NAME=0
+VIRTUALENVWRAPPER_SCRIPT=/usr/local/bin/virtualenvwrapper.sh
+SHELL=/bin/bash
+TERM=xterm-256color"""
+        stderr = "Terrible error happened"
+
+        self.assertEqual({
+            "environment": {
+                "TMPDIR": "/var/folders/mq/6c9b9wvx2w3dk8ml6_29z6fw0000gn/T/",
+                "PROJECT_HOME": "/Users/foo/bar",
+                "XPC_SERVICE_NAME": "0",
+                "VIRTUALENVWRAPPER_SCRIPT": "/usr/local/bin/virtualenvwrapper.sh",
+                "SHELL": "/bin/bash",
+                "TERM": "xterm-256color"
+            },
+            "stderr": "Terrible error happened"
+        }, raven_logger.get_extra_info(env=env, stderr=stderr))

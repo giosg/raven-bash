@@ -61,14 +61,14 @@ def process_sourcefile(file_path, line_number, context_lines=10):
     return FileContext(pre_context, context, post_context)
 
 
-def get_extra_info(shell_args):
+def get_extra_info(env=None, stderr=None):
     # add ENV vars and stderr if provided
     extra = {}
-    if shell_args.env:
-        extra['environment'] = dict([item.split('=', 1) for item in shell_args.env.split('\n')])
+    if env:
+        extra['environment'] = dict([item.split('=', 1) for item in env.split('\n')])
 
-    if shell_args.stderr:
-        extra['stderr'] = shell_args.stderr
+    if stderr:
+        extra['stderr'] = stderr
 
     return extra
 
@@ -139,12 +139,11 @@ def main():
 
     # Use RequestsHTTPTransport here so it works with Lets encrypt certs
     client = Client(dsn=dsn, context={}, transport=RequestsHTTPTransport)
-
     client.capture(
         'raven.events.Message',
         message="raven-bash captured error in %s" % args.script,
         data=get_captured_exception(args),
-        extra=get_extra_info(args),
+        extra=get_extra_info(env=args.env, stderr=args.stderr)
     )
 
 if __name__ == '__main__':
