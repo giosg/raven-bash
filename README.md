@@ -1,6 +1,8 @@
 # raven-bash 2 - With up to date raven and some tests
 > This is a heavily modified fork of https://github.com/ViktorStiskala/raven-bash
 
+[![Build Status](https://travis-ci.org/giosg/raven-bash.svg?branch=master)](https://travis-ci.org/giosg/raven-bash)
+
 Raven Sentry client for Bash.
 
 Logs error if one of your commands exits with non-zero return code and produces simple traceback for easier debugging. It also tries to extract last values of the variables visible in the traceback. Environment variables and stderr output are also included.
