@@ -4,6 +4,11 @@ import tempfile
 
 
 class TestRavenLogger(TestCase):
+    def setUp(self):
+        # Python 2 & 3 compatibility
+        if not hasattr(self, 'assertItemsEqual'):
+            self.assertItemsEqual = self.assertCountEqual
+
     def test_process_sourcefile_parses_context(self):
         TEST_SCRIPT = """#!/bin/bash
 source raven-bash  # best sentry reporting tool ever
@@ -22,7 +27,7 @@ echo "Should see this 9"
 echo "Should see this 10"
 echo "Should not see this"
 """
-        with tempfile.NamedTemporaryFile() as testfile:
+        with tempfile.NamedTemporaryFile(mode="w") as testfile:
             testfile.write(TEST_SCRIPT)
             testfile.seek(0)
             parsed_context = raven_logger.process_sourcefile(testfile.name, 5)
