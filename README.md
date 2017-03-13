@@ -22,6 +22,11 @@ The default installation uses default transport for raven. If you need `Requests
 pip install git+https://github.com/giosg/raven-bash@master#egg=raven-bash[requests]
 ```
 
+If you do not have git you can install from zip too
+```
+pip install https://github.com/giosg/raven-bash/archive/master.zip#egg=raven-bash
+```
+
 ## Usage
   Set `SENTRY_DSN` environment variable that points to your sentry host
 
