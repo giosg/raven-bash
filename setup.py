@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='raven-bash 2',
+    name='raven-bash',
     version='0.1.0',
     description='Raven Sentry client for Bash.',
     classifiers=[],
