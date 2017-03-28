@@ -15,18 +15,18 @@ This script is currently in working beta. Use at your own risk. Any contribution
 
 ## Installation
 ```shell
-pip install git+https://github.com/giosg/raven-bash@master#egg=raven-bash
+pip install git+https://github.com/giosg/raven-bash@master#egg=raven-bash==0.1.0
 ```
 
 The default installation uses default transport for raven. If you need `RequestsHTTPTransport` you can install the raven-bash with `extras_require` requests.
 
 ```shell
-pip install git+https://github.com/giosg/raven-bash@master#egg=raven-bash[requests]
+pip install git+https://github.com/giosg/raven-bash@master#egg=raven-bash[requests]==0.1.0
 ```
 
 If you do not have git you can install from zip too
 ```
-pip install https://github.com/giosg/raven-bash/archive/master.zip#egg=raven-bash
+pip install https://github.com/giosg/raven-bash/archive/master.zip#egg=raven-bash==0.1.0
 ```
 
 ## Usage
